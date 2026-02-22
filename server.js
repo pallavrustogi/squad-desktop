@@ -452,28 +452,25 @@ wss.on('connection', (ws) => {
 // ── Startup ────────────────────────────────────────────────────────────────
 seedAgents();
 
-server.listen(PORT, async () => {
+server.listen(PORT, () => {
   console.log(`[SERVER] Squad Desktop running at http://localhost:${PORT}`);
 
-  // Open browser automatically
-  try {
-    const { default: open } = await import('open');
-    await open(`http://localhost:${PORT}`);
-  } catch {
-    // Fallback: use platform-specific command
-    const url = `http://localhost:${PORT}`;
-    try {
-      if (process.platform === 'win32') spawn('cmd', ['/c', 'start', url], { detached: true, stdio: 'ignore' });
-      else if (process.platform === 'darwin') spawn('open', [url], { detached: true, stdio: 'ignore' });
-      else spawn('xdg-open', [url], { detached: true, stdio: 'ignore' });
-    } catch (e) {
-      console.log(`[SERVER] Open browser manually: ${url}`);
-    }
-  }
-
-  // Start Copilot connection after server is up
+  // Start Copilot connection (don't await — let it connect while the window opens)
   sendTerminalLog('System', '⏳', 'Connecting to GitHub Copilot...', 'analyzing');
-  await initCopilotClient();
+  initCopilotClient();
+
+  // Open native WebView2 window (blocking — must come after server.listen)
+  import('webview-nodejs').then(({ Webview }) => {
+    const w = new Webview();
+    w.title('Squad Desktop');
+    w.size(1200, 800);
+    w.navigate(`http://localhost:${PORT}`);
+    w.show(); // Blocks until window is closed
+    shutdown();
+  }).catch((err) => {
+    console.error('[SERVER] Failed to open WebView window:', err.message);
+    console.log(`[SERVER] Open browser manually: http://localhost:${PORT}`);
+  });
 });
 
 // ── Graceful Shutdown ──────────────────────────────────────────────────────

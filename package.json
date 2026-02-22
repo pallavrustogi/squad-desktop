@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "build:bundle": "esbuild server.js --bundle --platform=node --format=cjs --outfile=dist/server.cjs --target=node20 --external:open",
-    "build:copy": "node -e \"const fs=require('fs');fs.cpSync('public','dist/public',{recursive:true});fs.cpSync('node_modules/@github/copilot','dist/node_modules/@github/copilot',{recursive:true})\"",
+    "build:bundle": "esbuild server.js --bundle --platform=node --format=cjs --outfile=dist/server.cjs --target=node20 --external:webview-nodejs --external:@github/copilot-sdk",
+    "build:copy": "node -e \"const fs=require('fs');fs.cpSync('public','dist/public',{recursive:true});fs.cpSync('node_modules/@github/copilot','dist/node_modules/@github/copilot',{recursive:true});fs.cpSync('node_modules/@github/copilot-sdk','dist/node_modules/@github/copilot-sdk',{recursive:true})\"",
     "build:exe": "pkg dist/server.cjs --targets node20-win-x64 --output dist/squad-desktop.exe",
     "build": "npm run build:bundle && npm run build:copy && npm run build:exe"
   },
@@ -14,11 +14,12 @@
     "@bradygaster/squad-sdk": "file:../squad-pr/packages/squad-sdk",
     "@github/copilot-sdk": "^0.1.25",
     "express": "^4.21.0",
-    "open": "^10.1.0",
+    "webview-nodejs": "^0.4.3",
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "esbuild": "^0.25.0",
-    "@yao-pkg/pkg": "^6.0.0"
+    "@yao-pkg/pkg": "^6.0.0",
+    "cmake-js": "^8.0.0",
+    "esbuild": "^0.25.0"
   }
 }
