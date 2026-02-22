@@ -1,0 +1,24 @@
+{
+  "name": "squad-desktop",
+  "version": "1.0.0",
+  "description": "Squad Desktop — AI Agent Monitoring & Control (PWA)",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "build:bundle": "esbuild server.js --bundle --platform=node --format=cjs --outfile=dist/server.cjs --target=node20 --external:open",
+    "build:copy": "node -e \"require('fs').cpSync('public','dist/public',{recursive:true})\"",
+    "build:exe": "pkg dist/server.cjs --targets node20-win-x64 --output dist/squad-desktop.exe",
+    "build": "npm run build:bundle && npm run build:copy && npm run build:exe"
+  },
+  "dependencies": {
+    "@bradygaster/squad-sdk": "file:../squad-pr/packages/squad-sdk",
+    "@github/copilot-sdk": "^0.1.25",
+    "express": "^4.21.0",
+    "open": "^10.1.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "@yao-pkg/pkg": "^6.0.0"
+  }
+}
