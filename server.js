@@ -94,12 +94,23 @@ function findSystemNode() {
 // ── Find bundled Copilot CLI path ──────────────────────────────────────────
 function findCopilotCliPath() {
   const candidates = [
+    // Dev mode: node_modules next to server.js
     path.join(_scriptDir, 'node_modules', '@github', 'copilot', 'index.js'),
     path.join(_scriptDir, '..', 'squad-pr', 'node_modules', '@github', 'copilot', 'index.js'),
+    // Packaged exe: node_modules next to the exe on disk
+    path.join(appDir, 'node_modules', '@github', 'copilot', 'index.js'),
+    path.join(appDir, '..', 'squad-pr', 'node_modules', '@github', 'copilot', 'index.js'),
+    path.join(appDir, '..', 'squad-desktop', 'node_modules', '@github', 'copilot', 'index.js'),
   ];
   for (const p of candidates) {
     if (fs.existsSync(p)) return p;
   }
+  // Try resolving from system npm global
+  try {
+    const globalRoot = execSync('npm root -g', { encoding: 'utf-8' }).trim();
+    const globalPath = path.join(globalRoot, '@github', 'copilot', 'index.js');
+    if (fs.existsSync(globalPath)) return globalPath;
+  } catch { /* ignore */ }
   return null;
 }
 

@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "build:bundle": "esbuild server.js --bundle --platform=node --format=cjs --outfile=dist/server.cjs --target=node20 --external:open",
-    "build:copy": "node -e \"require('fs').cpSync('public','dist/public',{recursive:true})\"",
+    "build:copy": "node -e \"const fs=require('fs');fs.cpSync('public','dist/public',{recursive:true});fs.cpSync('node_modules/@github/copilot','dist/node_modules/@github/copilot',{recursive:true})\"",
     "build:exe": "pkg dist/server.cjs --targets node20-win-x64 --output dist/squad-desktop.exe",
     "build": "npm run build:bundle && npm run build:copy && npm run build:exe"
   },
