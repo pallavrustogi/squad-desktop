@@ -26,6 +26,7 @@ Squad Desktop gives you a visual interface to see what each agent is doing, issu
 
 - [Node.js](https://nodejs.org/) 18+
 - npm
+- GitHub Copilot CLI: `npm install -g @github/copilot`
 
 ### Run from source
 
