@@ -3,3 +3,6 @@ dist/
 dist-packaged/
 *.exe
 .env
+.squad/
+.squad-templates/
+*.log

@@ -23,7 +23,6 @@ import {
   CliOutputPayload,
   CliStatusPayload,
 } from '../../shared/ipc-types';
-import { Protocol } from '../cli/protocol';
 import { StreamParser, ParsedEvent } from '../cli/stream-parser';
 import { CommandProcessor } from '../cli/command-processor';
 
@@ -36,10 +35,12 @@ export class IPCHandlers {
   private commandProcessor: CommandProcessor;
 
   constructor(
-    private protocol: Protocol,
     private streamParser: StreamParser
   ) {
     this.commandProcessor = new CommandProcessor();
+    this.commandProcessor.on('error', (err: any) => {
+      console.error('CommandProcessor error event:', err);
+    });
     this.wireCommandProcessor();
   }
 
@@ -70,7 +71,6 @@ export class IPCHandlers {
         this.agents.set(agent.id, agent);
         this.streamParser.updateAgents(this.agents);
         this.commandProcessor.updateAgents(this.agents);
-        this.protocol.addAgent(args.name, args.role, args.emoji);
 
         this.sendToRenderer(IPC_CHANNELS.AGENT_ADDED, { agent });
         return agent;
@@ -85,7 +85,6 @@ export class IPCHandlers {
           this.agents.delete(agentId);
           this.streamParser.updateAgents(this.agents);
           this.commandProcessor.updateAgents(this.agents);
-          this.protocol.removeAgent(agentId);
           this.sendToRenderer(IPC_CHANNELS.AGENT_REMOVED, { agentId });
         }
       }
@@ -95,7 +94,7 @@ export class IPCHandlers {
     ipcMain.handle(
       IPC_CHANNELS.COMMAND_SEND,
       async (_event, args: CommandSendArgs): Promise<CommandSendResult> => {
-        const commandId = this.protocol.generateCommandId();
+        const commandId = `cmd-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
         const command: Command = {
           id: commandId,
@@ -114,12 +113,10 @@ export class IPCHandlers {
         this.commandQueue.push(queueItem);
         this.sendQueueUpdate();
 
-        // Send to CLI if connected, otherwise process locally
-        if (this.cliConnected) {
-          this.protocol.sendCommand(args.command, args.targetAgentId);
-        } else {
-          this.commandProcessor.processItem(queueItem);
-        }
+        // Process locally via CommandProcessor (catch errors to prevent crash)
+        this.commandProcessor.processItem(queueItem).catch((err) => {
+          console.error('CommandProcessor error:', err);
+        });
 
         return { commandId };
       }
@@ -154,9 +151,6 @@ export class IPCHandlers {
 
         if (item && item.status === QueueStatus.Pending) {
           item.status = QueueStatus.Cancelled;
-          if (this.cliConnected) {
-            this.protocol.cancelCommand(commandId);
-          }
           this.sendQueueUpdate();
         }
       }
@@ -325,8 +319,12 @@ export class IPCHandlers {
   }
 
   private sendToRenderer(channel: string, payload: any): void {
-    if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-      this.mainWindow.webContents.send(channel, payload);
+    try {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send(channel, payload);
+      }
+    } catch (err) {
+      console.error('sendToRenderer error:', err);
     }
   }
 
@@ -337,22 +335,6 @@ export class IPCHandlers {
       connected,
       error,
     } as CliStatusPayload);
-
-    // Flush pending commands when CLI connects
-    if (connected) {
-      this.flushPendingCommands();
-    }
-  }
-
-  private flushPendingCommands(): void {
-    for (const item of this.commandQueue) {
-      if (item.status === QueueStatus.Pending) {
-        this.protocol.sendCommand(
-          item.command.text,
-          item.command.targetAgentId
-        );
-      }
-    }
   }
 
   // Initialize with sample agents for testing

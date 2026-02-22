@@ -65,10 +65,11 @@ export class SquadProcess extends EventEmitter {
         this.emit('line', line);
       });
 
-      // Capture stderr for error reporting
+      // Capture stderr — use 'stderr' event (NOT 'error' which crashes Node EventEmitter)
       this.process.stderr.on('data', (data: Buffer) => {
         const errorText = data.toString();
-        this.emit('error', errorText);
+        console.log('SquadProcess stderr:', errorText.trim());
+        this.emit('stderr', errorText);
       });
 
       // Handle process exit
@@ -92,7 +93,8 @@ export class SquadProcess extends EventEmitter {
       });
 
       this.process.on('error', (err: Error) => {
-        this.emit('error', `Process error: ${err.message}`);
+        console.log('SquadProcess process error:', err.message);
+        this.emit('process-error', `Process error: ${err.message}`);
       });
 
     } catch (error: any) {
@@ -100,7 +102,8 @@ export class SquadProcess extends EventEmitter {
       const errorMsg = error.code === 'ENOENT' 
         ? `Squad CLI not found. Ensure npx is available and try: npx github:bradygaster/squad`
         : `Failed to start Squad CLI: ${error.message}`;
-      this.emit('error', errorMsg);
+      console.log(errorMsg);
+      this.emit('process-error', errorMsg);
     }
   }
 

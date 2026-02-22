@@ -18,19 +18,16 @@ export function createWindow(): BrowserWindow {
   const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
   if (isDev) {
-    win.loadURL('http://localhost:5173').catch((err) => {
-      console.error('Failed to load dev URL:', err);
-      // Fallback: show error in window
-      win.loadURL(`data:text/html,<h1 style="color:white;background:#1a1a2e;padding:40px;font-family:sans-serif">Failed to load dev server<br><small>${err.message}</small></h1>`);
+    win.loadURL('http://localhost:5173').catch(() => {
+      // Vite not ready — show fallback, no crash
+      win.loadURL('data:text/html,' + encodeURIComponent(
+        '<html><body style="background:#1a1a2e;color:#8be9fd;font-family:monospace;padding:40px">' +
+        '<h1>Squad Desktop</h1><p>Waiting for dev server on localhost:5173...</p></body></html>'
+      ));
     });
-    win.webContents.openDevTools();
   } else {
     win.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
-
-  win.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
-    console.error(`Window failed to load: ${errorCode} ${errorDescription}`);
-  });
 
   return win;
 }
