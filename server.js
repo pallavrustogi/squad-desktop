@@ -7,6 +7,7 @@ import { randomUUID } from 'crypto';
 import { fileURLToPath } from 'url';
 import { spawn, execSync } from 'child_process';
 import { CopilotClient } from '@github/copilot-sdk';
+import { Webview } from 'webview-nodejs';
 
 // Compute script directory: works in ESM (dev) and CJS (esbuild bundle)
 const _scriptDir = (() => {
@@ -42,6 +43,7 @@ let agents = [];
 let squadClient = null;
 let cliProcess = null;
 const agentSessions = new Map();
+const nativeMessageQueue = [];
 
 // ── WebSocket Broadcast ────────────────────────────────────────────────────
 let wss;
@@ -51,6 +53,7 @@ function isSendable() {
 }
 
 function broadcast(type, data) {
+  nativeMessageQueue.push({ type, data });
   if (!isSendable()) return;
   const message = JSON.stringify({ type, data });
   for (const client of wss.clients) {
@@ -448,6 +451,85 @@ wss.on('connection', (ws) => {
   });
 });
 
+// ── Native WebView Window ──────────────────────────────────────────────────
+function setupNativeWindow() {
+  const w = new Webview();
+  w.title('Squad Desktop');
+  w.size(1200, 800);
+
+  // Read and inline all frontend files
+  const publicDir = path.join(appDir, 'public');
+  let html = fs.readFileSync(path.join(publicDir, 'index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(publicDir, 'styles.css'), 'utf8');
+  const apiJs = fs.readFileSync(path.join(publicDir, 'squadAPI.js'), 'utf8');
+  const rendererJs = fs.readFileSync(path.join(publicDir, 'renderer.js'), 'utf8');
+
+  // Inline everything (replace external refs with inline content)
+  html = html.replace('<link rel="stylesheet" href="styles.css">', `<style>${css}</style>`);
+  html = html.replace('<link rel="manifest" href="manifest.json">', '');
+  html = html.replace('<script src="squadAPI.js"></script>', `<script>${apiJs}</script>`);
+  html = html.replace('<script src="renderer.js"></script>', `<script>${rendererJs}</script>`);
+  // Remove service worker registration (not needed in native window)
+  html = html.replace(/<script>\s*if\s*\('serviceWorker'[\s\S]*?<\/script>/, '');
+
+  // Bind API functions — these execute inside the webview message loop
+  w.bind('nativeGetAgents', () => JSON.stringify(agents));
+
+  w.bind('nativeAddAgent', (seq, name, role, emoji) => {
+    const newAgent = { id: randomUUID(), name, role, emoji: emoji || '🤖', status: 'IDLE', output: [], queue: [] };
+    agents.push(newAgent);
+    return JSON.stringify(agents);
+  });
+
+  w.bind('nativeRemoveAgent', (seq, agentId) => {
+    const entry = agentSessions.get(agentId);
+    if (entry?.session) {
+      try { entry.session.destroy(); } catch (_) { /* ignore */ }
+      agentSessions.delete(agentId);
+    }
+    agents = agents.filter(a => a.id !== agentId);
+    return JSON.stringify(agents);
+  });
+
+  w.bind('nativeSendCommand', (seq, agentId, command) => {
+    const agent = agents.find(a => a.id === agentId);
+    if (!agent) return JSON.stringify({ error: 'Agent not found' });
+    if (!command) return JSON.stringify({ error: 'command is required' });
+
+    const queueItem = {
+      id: randomUUID(), command, status: 'PENDING',
+      timestamp: new Date().toISOString(), result: null
+    };
+    agent.queue.push(queueItem);
+    updateQueueItem(agentId, queueItem);
+    processCommand(agentId, queueItem);
+    return JSON.stringify(queueItem);
+  });
+
+  w.bind('nativeGetQueue', (seq, agentId) => {
+    const agent = agents.find(a => a.id === agentId);
+    if (!agent) return JSON.stringify([]);
+    return JSON.stringify(agent.queue);
+  });
+
+  w.bind('nativeGetConnectionStatus', () => {
+    return JSON.stringify({ status: connectionState });
+  });
+
+  w.bind('nativeReconnectCopilot', () => {
+    initCopilotClient();
+    return JSON.stringify({ status: connectionState });
+  });
+
+  w.bind('nativePoll', () => {
+    return JSON.stringify(nativeMessageQueue.splice(0));
+  });
+
+  w.html(html);
+  w.show(); // Blocks — but bind callbacks still fire via message loop
+  shutdown();
+}
+
 // ── Startup ────────────────────────────────────────────────────────────────
 seedAgents();
 
@@ -457,16 +539,16 @@ server.listen(PORT, async () => {
   sendTerminalLog('System', '⏳', 'Connecting to GitHub Copilot...', 'analyzing');
   await initCopilotClient();
 
-  // Open in the default browser (WebView2's w.show() blocks Node's event loop,
-  // preventing Express from serving any requests — so we use the system browser)
-  const url = `http://localhost:${PORT}`;
   try {
-    if (process.platform === 'win32') execSync(`start "" "${url}"`, { stdio: 'ignore' });
-    else if (process.platform === 'darwin') execSync(`open "${url}"`, { stdio: 'ignore' });
-    else execSync(`xdg-open "${url}"`, { stdio: 'ignore' });
-    console.log(`[SERVER] Opened browser at ${url}`);
-  } catch {
-    console.log(`[SERVER] Open browser manually: ${url}`);
+    setupNativeWindow();
+  } catch (err) {
+    console.error('[SERVER] WebView2 failed:', err.message, '— opening browser');
+    const url = `http://localhost:${PORT}`;
+    try {
+      if (process.platform === 'win32') execSync(`start "" "${url}"`, { stdio: 'ignore' });
+      else if (process.platform === 'darwin') execSync(`open "${url}"`, { stdio: 'ignore' });
+      else execSync(`xdg-open "${url}"`, { stdio: 'ignore' });
+    } catch { console.log(`[SERVER] Open manually: ${url}`); }
   }
 });
 

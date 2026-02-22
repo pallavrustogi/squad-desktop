@@ -11,11 +11,31 @@ function copyDir(src, dest) {
   fs.cpSync(src, dest, { recursive: true });
 }
 
+function copyFile(src, dest) {
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.copyFileSync(src, dest);
+}
+
 // --- PWA static files ---
 copyDir(path.join(__dirname, '..', 'public'), path.join(dist, 'public'));
 
 // --- @github/copilot CLI (needed as child process at runtime) ---
 copyDir(path.join(nm, '@github', 'copilot'), path.join(dist, 'node_modules', '@github', 'copilot'));
+
+// --- webview-nodejs (externalized, full package) ---
+copyDir(path.join(nm, 'webview-nodejs'), path.join(dist, 'node_modules', 'webview-nodejs'));
+
+// --- libwebview-nodejs ---
+const libDest = path.join(dist, 'node_modules', 'libwebview-nodejs');
+copyFile(path.join(nm, 'libwebview-nodejs', 'index.js'), path.join(libDest, 'index.js'));
+copyFile(path.join(nm, 'libwebview-nodejs', 'package.json'), path.join(libDest, 'package.json'));
+copyFile(path.join(nm, 'libwebview-nodejs', 'build', 'libwebview.node'), path.join(libDest, 'build', 'libwebview.node'));
+
+// --- bindings + file-uri-to-path ---
+copyDir(path.join(nm, 'bindings'), path.join(dist, 'node_modules', 'bindings'));
+if (fs.existsSync(path.join(nm, 'file-uri-to-path'))) {
+  copyDir(path.join(nm, 'file-uri-to-path'), path.join(dist, 'node_modules', 'file-uri-to-path'));
+}
 
 // --- Patch: skip getBundledCliPath() when cliUrl is provided ---
 // esbuild replaces import.meta with `var import_meta = {}` in CJS format.
