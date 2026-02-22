@@ -7,7 +7,6 @@ import { randomUUID } from 'crypto';
 import { fileURLToPath } from 'url';
 import { spawn, execSync } from 'child_process';
 import { CopilotClient } from '@github/copilot-sdk';
-import { Webview } from 'webview-nodejs';
 
 // Compute script directory: works in ESM (dev) and CJS (esbuild bundle)
 const _scriptDir = (() => {
@@ -455,22 +454,19 @@ seedAgents();
 server.listen(PORT, async () => {
   console.log(`[SERVER] Squad Desktop running at http://localhost:${PORT}`);
 
-  // Connect to Copilot BEFORE opening WebView — w.show() blocks Node's event loop,
-  // so all async work (CLI spawn, timeouts, stream reads) must complete first
   sendTerminalLog('System', '⏳', 'Connecting to GitHub Copilot...', 'analyzing');
   await initCopilotClient();
 
-  // Open native WebView2 window (blocking — must come after copilot connection)
+  // Open in the default browser (WebView2's w.show() blocks Node's event loop,
+  // preventing Express from serving any requests — so we use the system browser)
+  const url = `http://localhost:${PORT}`;
   try {
-    const w = new Webview();
-    w.title('Squad Desktop');
-    w.size(1200, 800);
-    w.navigate(`http://localhost:${PORT}`);
-    w.show(); // Blocks until window is closed
-    shutdown();
-  } catch (err) {
-    console.error('[SERVER] Failed to open WebView window:', err.message);
-    console.log(`[SERVER] Open browser manually: http://localhost:${PORT}`);
+    if (process.platform === 'win32') execSync(`start "" "${url}"`, { stdio: 'ignore' });
+    else if (process.platform === 'darwin') execSync(`open "${url}"`, { stdio: 'ignore' });
+    else execSync(`xdg-open "${url}"`, { stdio: 'ignore' });
+    console.log(`[SERVER] Opened browser at ${url}`);
+  } catch {
+    console.log(`[SERVER] Open browser manually: ${url}`);
   }
 });
 
