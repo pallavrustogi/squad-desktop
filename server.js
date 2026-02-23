@@ -418,23 +418,31 @@ app.delete('/api/agents/:id', async (req, res) => {
 });
 
 // ── Delegation Detection ───────────────────────────────────────────────────
-// Detects commands like "ask Ariadne to review X" and routes to the named agent.
-function detectDelegation(command, sourceAgent) {
+// Detects ALL "ask X to do Y" patterns in a compound command and returns an array.
+function detectDelegations(command, sourceAgent) {
+  const results = [];
+  let remaining = command;
   for (const target of agents) {
     if (target.id === sourceAgent.id) continue;
     const n = target.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const patterns = [
-      new RegExp(`(?:can you |please )?ask\\s+${n}\\s+to\\s+(.+)`, 'is'),
-      new RegExp(`(?:can you |please )?tell\\s+${n}\\s+to\\s+(.+)`, 'is'),
-      new RegExp(`(?:can you |please )?have\\s+${n}\\s+(.+)`, 'is'),
-      new RegExp(`^[^,]*?${n}[,:]\\s*(.+)`, 'is'),
+      new RegExp(`(?:can you |please )?(?:ask|as)\\s+${n}\\s+to\\s+(.+?)(?=\\.|$|\\bask\\s|\\btell\\s|\\bhave\\s)`, 'i'),
+      new RegExp(`(?:can you |please )?tell\\s+${n}\\s+to\\s+(.+?)(?=\\.|$|\\bask\\s|\\btell\\s|\\bhave\\s)`, 'i'),
+      new RegExp(`(?:can you |please )?have\\s+${n}\\s+(.+?)(?=\\.|$|\\bask\\s|\\btell\\s|\\bhave\\s)`, 'i'),
     ];
     for (const p of patterns) {
-      const m = command.match(p);
-      if (m && m[1]) return { target, task: m[1].trim().replace(/^"|"$/g, '') };
+      const m = remaining.match(p);
+      if (m && m[1]) {
+        const task = m[1].trim().replace(/^"|"$/g, '').replace(/\.\s*$/, '');
+        if (task) {
+          results.push({ target, task, fullMatch: m[0] });
+          remaining = remaining.replace(m[0], '');
+        }
+        break; // one match per agent
+      }
     }
   }
-  return null;
+  return results;
 }
 
 app.post('/api/agents/:id/command', (req, res) => {
@@ -445,7 +453,7 @@ app.post('/api/agents/:id/command', (req, res) => {
   const { command } = req.body;
   if (!command) return res.status(400).json({ error: 'command is required' });
 
-  const delegation = detectDelegation(command, agent);
+  const delegations = detectDelegations(command, agent);
 
   const queueItem = {
     id: randomUUID(), command, status: 'PENDING',
@@ -455,21 +463,36 @@ app.post('/api/agents/:id/command', (req, res) => {
   agent.queue.push(queueItem);
   updateQueueItem(agentId, queueItem);
 
-  if (delegation) {
-    // Route the extracted task to the target agent
-    const targetItem = {
-      id: randomUUID(), command: delegation.task, status: 'PENDING',
-      timestamp: new Date().toISOString(), result: null
-    };
-    delegation.target.queue.push(targetItem);
-    updateQueueItem(delegation.target.id, targetItem);
-    processCommand(delegation.target.id, targetItem);
+  if (delegations.length > 0) {
+    // Route each delegation to its target agent
+    const names = [];
+    for (const d of delegations) {
+      const targetItem = {
+        id: randomUUID(), command: d.task, status: 'PENDING',
+        timestamp: new Date().toISOString(), result: null
+      };
+      d.target.queue.push(targetItem);
+      updateQueueItem(d.target.id, targetItem);
+      processCommand(d.target.id, targetItem);
+      sendTerminalLog(agent.name, '🔀', `${agent.name} → ${d.target.name}: "${d.task}"`, 'info');
+      names.push(d.target.name);
+    }
 
-    // Mark the source command as delegated (no copilot call needed)
-    queueItem.status = 'DONE';
-    queueItem.result = `Delegated to ${delegation.target.name}`;
-    updateQueueItem(agentId, queueItem);
-    sendTerminalLog(agent.name, '🔀', `${agent.name} → ${delegation.target.name}: "${delegation.task}"`, 'info');
+    // Strip delegated parts — if remainder has substance, send to source agent too
+    let remainder = command;
+    for (const d of delegations) remainder = remainder.replace(d.fullMatch, '');
+    remainder = remainder.replace(/[.,;]+\s*/g, ' ').trim();
+
+    if (remainder.length > 10) {
+      // Source agent still has its own work
+      queueItem.command = remainder;
+      processCommand(agentId, queueItem);
+      sendTerminalLog(agent.name, '📋', `${agent.name} also working on: "${remainder}"`, 'info');
+    } else {
+      queueItem.status = 'DONE';
+      queueItem.result = `Delegated to ${names.join(', ')}`;
+      updateQueueItem(agentId, queueItem);
+    }
   } else {
     processCommand(agentId, queueItem);
   }

@@ -29,8 +29,13 @@ function renderAgentCard(agent) {
             </div>
             <span class="status-badge ${statusClass}">${agent.status}</span>
         </div>
-        <div class="agent-output">${outputPreview}</div>
+        <div class="agent-output" title="Click to expand">${outputPreview}</div>
     `;
+
+    // Click-to-expand output
+    card.querySelector('.agent-output').addEventListener('click', function() {
+        this.classList.toggle('expanded');
+    });
 
     return card;
 }
