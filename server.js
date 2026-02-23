@@ -371,6 +371,9 @@ async function processCommand(agentId, queueItem) {
       }
     }
 
+    // Response-based delegation: scan for mentions of other agents in the response
+    detectResponseDelegations(agent, fullResponse);
+
     queueItem.status = 'DONE';
     queueItem.result = fullResponse.slice(0, 500) || 'Task completed';
     updateQueueItem(agentId, queueItem);
@@ -384,6 +387,45 @@ async function processCommand(agentId, queueItem) {
     updateQueueItem(agentId, queueItem);
     updateAgentStatus(agentId, 'ERROR');
     setTimeout(() => updateAgentStatus(agentId, 'IDLE'), 3000);
+  }
+}
+
+// ── Response-Based Delegation ──────────────────────────────────────────────
+// When an agent's response mentions another agent doing work, auto-route to them.
+function detectResponseDelegations(sourceAgent, response) {
+  if (!response) return;
+  for (const target of agents) {
+    if (target.id === sourceAgent.id) continue;
+    const n = target.name;
+    const nRe = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // Patterns: "Ariadne's on it", "I've asked Ariadne to X", "Ariadne will review X",
+    // "asking Ariadne to X", "Ariadne, can you X", "delegating to Ariadne"
+    const patterns = [
+      new RegExp(`(?:I've |I have |I'll |let me )?(?:ask|asked|asking)\\s+${nRe}\\s+to\\s+(.+?)(?:\\.|\\n|$)`, 'i'),
+      new RegExp(`${nRe}\\s+(?:will|can|should|is going to)\\s+(.+?)(?:\\.|\\n|$)`, 'i'),
+      new RegExp(`${nRe}'s\\s+on\\s+it`, 'i'),
+      new RegExp(`delegat(?:e|ed|ing)\\s+(?:this )?to\\s+${nRe}`, 'i'),
+    ];
+
+    for (const p of patterns) {
+      const m = response.match(p);
+      if (m) {
+        const task = m[1] ? m[1].trim() : `Follow up on ${sourceAgent.name}'s request`;
+        // Don't re-delegate if target is already working
+        if (target.status === 'WORKING') break;
+
+        sendTerminalLog(sourceAgent.name, '🔀', `${sourceAgent.name} → ${target.name}: "${task}"`, 'info');
+        const targetItem = {
+          id: randomUUID(), command: task, status: 'PENDING',
+          timestamp: new Date().toISOString(), result: null
+        };
+        target.queue.push(targetItem);
+        updateQueueItem(target.id, targetItem);
+        enqueueCommand(target.id, targetItem);
+        break; // one delegation per agent per response
+      }
+    }
   }
 }
 
