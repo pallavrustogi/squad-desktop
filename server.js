@@ -310,10 +310,10 @@ async function processCommand(agentId, queueItem) {
 
     const unsubAll = session.on((event) => {
       const type = event.type || 'unknown';
-      console.log(`[EVENT] ${agent.name}: ${type}`, JSON.stringify(event.data || {}).slice(0, 200));
+      console.error(`[EVENT] ${agent.name}: ${type}`, JSON.stringify(event.data || {}).slice(0, 300));
 
       if (type === 'assistant.message_delta') {
-        const delta = event.data?.deltaContent || event.data?.delta || '';
+        const delta = event.data?.deltaContent || event.data?.delta || event.data?.content || '';
         if (delta) {
           fullResponse += delta;
           const chunk = delta.trim();
@@ -323,28 +323,34 @@ async function processCommand(agentId, queueItem) {
           }
         }
       } else if (type === 'assistant.message') {
-        const content = event.data?.content || '';
-        if (content && !fullResponse) {
+        const content = event.data?.content || event.data?.text || '';
+        if (content) {
           fullResponse = content;
         }
       }
-      // Tool start/complete events are logged to console only — too noisy for the terminal UI
     });
 
     const result = await session.sendAndWait({ prompt: command }, 300000);
 
     unsubAll();
 
-    if (!fullResponse && result?.data?.content) {
-      fullResponse = result.data.content;
+    // Try multiple paths to extract response from result
+    if (!fullResponse) {
+      const r = result || {};
+      fullResponse = r.data?.content || r.content || r.data?.text || r.text
+        || r.data?.message || r.message || (typeof r === 'string' ? r : '');
     }
+    console.error(`[RESULT] ${agent.name}: fullResponse length=${fullResponse.length}, result keys=${JSON.stringify(Object.keys(result || {}))}`);
+    if (result?.data) console.error(`[RESULT] result.data keys=${JSON.stringify(Object.keys(result.data || {}))}`);
 
-    if (fullResponse && !fullResponse.includes('\n')) {
-      sendTerminalLog(agent.name, '💬', fullResponse, 'response');
-    } else if (fullResponse) {
-      for (const line of fullResponse.split('\n').filter(l => l.trim())) {
+    // Log response to terminal
+    if (fullResponse) {
+      const lines = fullResponse.split('\n').filter(l => l.trim());
+      for (const line of lines) {
         sendTerminalLog(agent.name, '💬', line, 'response');
       }
+    } else {
+      sendTerminalLog(agent.name, '⚠️', `${agent.name} finished but returned no text`, 'error');
     }
 
     sendTerminalLog(agent.name, '✅', `${agent.name} completed task`, 'success');
