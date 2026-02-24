@@ -142,6 +142,11 @@ Squad Desktop can be packaged as a single Windows `.exe` (~44MB) that bundles No
 
 - **Node.js 20+** and **npm** (for building only — not needed to run the exe)
 - **Windows 10/11** with WebView2 runtime (pre-installed on Windows 11; auto-installed on Windows 10 via Edge)
+- **Visual Studio Build Tools** with the **"Desktop development with C++"** workload (required by `libwebview-nodejs` native addon). Install via:
+  ```
+  winget install Microsoft.VisualStudio.2022.BuildTools
+  ```
+  Then open **Visual Studio Installer → Modify → Workloads** and check **"Desktop development with C++"**.
 
 ### Build
 
