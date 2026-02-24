@@ -212,7 +212,7 @@ The `window.squadAPI` interface is fully compatible — the frontend code didn't
 
 ## About
 
-Squad Desktop is a side project by [Pallav Rustogi](https://github.com/pallavrustogi) — built to scratch an itch of wanting a proper desktop UI for managing AI agent teams. MIT licensed, free forever.
+Squad Desktop is a side project by [Pallav Rustogi](https://github.com/pallavrustogi) — built as a desktop companion app on top of [Squad](https://github.com/bradygaster/squad) by Brady Gaster. The goal: a proper native desktop UI for monitoring and controlling AI agent teams, instead of staring at terminal scrollback. MIT licensed, free forever.
 
 If you find it useful, star the repo or open an issue. Contributions welcome.
 
