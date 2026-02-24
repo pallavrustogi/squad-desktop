@@ -167,4 +167,4 @@ The original Electron files (`main.js`, `preload.cjs`, `renderer/`) are preserve
 
 ## License
 
-See [squad-pr](../squad-pr) for license information.
+MIT
