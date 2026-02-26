@@ -29,7 +29,17 @@ copyDir(path.join(nm, 'webview-nodejs'), path.join(dist, 'node_modules', 'webvie
 const libDest = path.join(dist, 'node_modules', 'libwebview-nodejs');
 copyFile(path.join(nm, 'libwebview-nodejs', 'index.js'), path.join(libDest, 'index.js'));
 copyFile(path.join(nm, 'libwebview-nodejs', 'package.json'), path.join(libDest, 'package.json'));
-copyFile(path.join(nm, 'libwebview-nodejs', 'build', 'libwebview.node'), path.join(libDest, 'build', 'libwebview.node'));
+// Native addon path varies by platform: cmake-js outputs to build/Release/ on macOS, build/ on Windows
+const libwebviewCandidates = [
+  path.join(nm, 'libwebview-nodejs', 'build', 'Release', 'libwebview.node'),
+  path.join(nm, 'libwebview-nodejs', 'build', 'libwebview.node'),
+];
+const libwebviewSrc = libwebviewCandidates.find(p => fs.existsSync(p));
+if (!libwebviewSrc) {
+  console.error('build-copy: ERROR — libwebview.node not found in any candidate path');
+  process.exit(1);
+}
+copyFile(libwebviewSrc, path.join(libDest, 'build', 'libwebview.node'));
 
 // --- bindings + file-uri-to-path ---
 copyDir(path.join(nm, 'bindings'), path.join(dist, 'node_modules', 'bindings'));

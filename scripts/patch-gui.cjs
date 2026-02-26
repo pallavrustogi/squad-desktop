@@ -3,6 +3,12 @@
 const fs = require('fs');
 const path = require('path');
 
+// Only applies to Windows PE binaries
+if (process.platform !== 'win32') {
+  console.log('patch-gui: skipping on non-Windows platform');
+  process.exit(0);
+}
+
 const exe = path.resolve(__dirname, '..', 'dist', 'squad-desktop.exe');
 const buf = fs.readFileSync(exe);
 

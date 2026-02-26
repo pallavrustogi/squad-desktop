@@ -91,6 +91,14 @@ function findSystemNode() {
     const nodePath = execSync(cmd, { encoding: 'utf-8' }).trim().split('\n')[0].trim();
     return nodePath;
   } catch {
+    // Fallback: check common macOS/Linux Node.js install paths
+    const fallbacks = [
+      '/opt/homebrew/bin/node',
+      '/usr/local/bin/node',
+    ];
+    for (const p of fallbacks) {
+      if (fs.existsSync(p)) return p;
+    }
     return 'node';
   }
 }
@@ -201,6 +209,7 @@ function startCopilotServer(nodePath, cliPath) {
     });
 
     let stdout = '';
+    let stderrBuf = '';
     let resolved = false;
 
     const timeout = setTimeout(() => {
@@ -221,7 +230,9 @@ function startCopilotServer(nodePath, cliPath) {
     });
 
     cliProcess.stderr.on('data', (data) => {
-      const lines = data.toString().split('\n');
+      const text = data.toString();
+      stderrBuf += text;
+      const lines = text.split('\n');
       for (const line of lines) {
         if (line.trim()) console.error(`[CLI] ${line}`);
       }
@@ -239,7 +250,7 @@ function startCopilotServer(nodePath, cliPath) {
       if (!resolved) {
         resolved = true;
         clearTimeout(timeout);
-        reject(new Error(`CLI exited with code ${code}`));
+        reject(new Error(`CLI exited with code ${code}. stderr: ${stderrBuf.slice(0, 500)}`));
       } else {
         console.error(`[CLI] Process exited unexpectedly with code ${code}`);
         logCrash('cli-exit', new Error(`CLI process exited with code ${code} after startup`));
