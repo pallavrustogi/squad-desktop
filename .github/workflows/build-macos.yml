@@ -1,0 +1,64 @@
+name: Build macOS
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build'
+        required: false
+        default: 'main'
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Cache Homebrew packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+          key: ${{ runner.os }}-homebrew-cmake
+
+      - name: Install CMake
+        run: |
+          if ! command -v cmake &> /dev/null; then
+            brew install cmake
+          else
+            echo "CMake already installed: $(cmake --version | head -1)"
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build:macos
+
+      - name: Verify build output
+        run: |
+          if [ ! -d "dist/Squad Desktop.app" ]; then
+            echo "::error::dist/Squad Desktop.app not found"
+            exit 1
+          fi
+          if [ ! -f "dist/squad-desktop" ]; then
+            echo "::error::dist/squad-desktop binary not found"
+            exit 1
+          fi
+          echo "Build successful: dist/Squad Desktop.app and dist/squad-desktop exist"
+          ls -lh dist/squad-desktop
+          ls -ld "dist/Squad Desktop.app"

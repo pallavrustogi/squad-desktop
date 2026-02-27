@@ -1,0 +1,44 @@
+name: Build Windows
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build'
+        required: false
+        default: 'main'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify build output
+        run: |
+          if (!(Test-Path "dist\squad-desktop.exe")) {
+            Write-Error "dist\squad-desktop.exe not found"
+            exit 1
+          }
+          Write-Output "Build successful: dist\squad-desktop.exe exists"
+          Get-Item "dist\squad-desktop.exe" | Select-Object Name, Length
