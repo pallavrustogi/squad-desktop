@@ -15,7 +15,7 @@
     "build:macos": "npm run build:bundle && npm run build:copy && npm run build:exe:macos && npm run build:app"
   },
   "dependencies": {
-    "@bradygaster/squad-sdk": "file:../squad-pr/packages/squad-sdk",
+    "@bradygaster/squad-sdk": "^0.8.5",
     "@github/copilot-sdk": "^0.1.25",
     "express": "^4.21.0",
     "webview-nodejs": "^0.4.3",
