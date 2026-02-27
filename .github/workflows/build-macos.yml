@@ -55,6 +55,10 @@ jobs:
             echo "::error::dist/Squad Desktop.app not found"
             exit 1
           fi
-          echo "Build successful: dist/Squad Desktop.app exists"
+          if [ ! -f "dist/squad-desktop" ]; then
+            echo "::error::dist/squad-desktop binary not found"
+            exit 1
+          fi
+          echo "Build successful: dist/Squad Desktop.app and dist/squad-desktop exist"
           ls -lh dist/squad-desktop
           ls -ld "dist/Squad Desktop.app"
