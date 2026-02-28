@@ -551,8 +551,13 @@ body {
 
 #add-agent-form label {
     font-size: 13px;
-    color: var(--text-secondary);
-    margin-bottom: -6px; /* visually tighten the label-to-select spacing within the 12px form gap */
+    color: var(--text-muted);
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 #add-agent-form input, #add-agent-form select {
