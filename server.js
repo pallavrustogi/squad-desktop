@@ -45,7 +45,9 @@ const SAFE_EMOJIS = new Set([
 ]);
 
 function sanitizeEmoji(emoji) {
-  return SAFE_EMOJIS.has(emoji) ? emoji : '🤖';
+  if (typeof emoji !== 'string') return '🤖';
+  const normalized = emoji.trim();
+  return SAFE_EMOJIS.has(normalized) ? normalized : '🤖';
 }
 
 // ── State ──────────────────────────────────────────────────────────────────
