@@ -549,17 +549,18 @@ body {
     gap: 12px;
 }
 
-#add-agent-form input {
+#add-agent-form input, #add-agent-form select {
     background: var(--bg-card);
     color: var(--text-primary);
     border: 1px solid var(--border-subtle);
     border-radius: 6px;
     padding: 10px 14px;
     font-size: 14px;
+    height: 42px;
     transition: all 0.2s;
 }
 
-#add-agent-form input:focus {
+#add-agent-form input:focus, #add-agent-form select:focus {
     outline: none;
     border-color: var(--accent-teal);
     box-shadow: 0 0 0 2px rgba(77, 208, 225, 0.2);

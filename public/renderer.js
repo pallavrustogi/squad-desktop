@@ -227,7 +227,20 @@ function renderRosterList() {
 
 async function initialize() {
     try {
-        agents = await window.squadAPI.getAgents();
+        const [fetchedAgents, emojisResult] = await Promise.all([
+            window.squadAPI.getAgents(),
+            window.squadAPI.getEmojis().catch(() => [{ emoji: '🤖', label: 'Robot' }]),
+        ]);
+        agents = fetchedAgents;
+
+        const emojiSelect = document.getElementById('agent-emoji');
+        const emojiList = emojisResult.length > 0 ? emojisResult : [{ emoji: '🤖', label: 'Robot' }];
+        emojiList.forEach(({ emoji, label }) => {
+            const option = document.createElement('option');
+            option.value = emoji;
+            option.textContent = `${emoji} ${label}`;
+            emojiSelect.appendChild(option);
+        });
         renderAgentsList();
         updateAgentSelector();
         renderAllQueues();

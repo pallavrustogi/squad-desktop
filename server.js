@@ -38,6 +38,38 @@ process.on('exit', (code) => {
   }
 });
 
+// ── Safe Emoji Allowlist ────────────────────────────────────────────────────
+// Single source of truth for allowed emojis; exposed via GET /api/emojis.
+const SAFE_EMOJI_LIST = [
+  { emoji: '🤖', label: 'Robot' },
+  { emoji: '🏗️', label: 'Construction' },
+  { emoji: '⚛️', label: 'Atom' },
+  { emoji: '⚙️', label: 'Gear' },
+  { emoji: '🔬', label: 'Microscope' },
+  { emoji: '🎯', label: 'Target' },
+  { emoji: '🛡️', label: 'Shield' },
+  { emoji: '🧠', label: 'Brain' },
+  { emoji: '💡', label: 'Lightbulb' },
+  { emoji: '🔍', label: 'Search' },
+  { emoji: '📊', label: 'Chart' },
+  { emoji: '🚀', label: 'Rocket' },
+  { emoji: '🦊', label: 'Fox' },
+  { emoji: '🐙', label: 'Octopus' },
+  { emoji: '🦉', label: 'Owl' },
+  { emoji: '🎨', label: 'Palette' },
+  { emoji: '📝', label: 'Memo' },
+  { emoji: '⚡', label: 'Lightning' },
+  { emoji: '🔧', label: 'Wrench' },
+  { emoji: '🌐', label: 'Globe' },
+];
+const SAFE_EMOJIS = new Set(SAFE_EMOJI_LIST.map(({ emoji }) => emoji));
+
+function sanitizeEmoji(emoji) {
+  if (typeof emoji !== 'string') return '🤖';
+  const normalized = emoji.trim();
+  return SAFE_EMOJIS.has(normalized) ? normalized : '🤖';
+}
+
 // ── State ──────────────────────────────────────────────────────────────────
 let agents = [];
 let squadClient = null;
@@ -457,6 +489,10 @@ app.use(express.json());
 app.use(express.static(path.join(appDir, 'public')));
 
 // REST API — replaces IPC handlers
+app.get('/api/emojis', (_req, res) => {
+  res.json(SAFE_EMOJI_LIST);
+});
+
 app.get('/api/agents', (_req, res) => {
   res.json(agents);
 });
@@ -464,7 +500,7 @@ app.get('/api/agents', (_req, res) => {
 app.post('/api/agents', (req, res) => {
   const { name, role, emoji } = req.body;
   if (!name || !role) return res.status(400).json({ error: 'name and role are required' });
-  const newAgent = { id: randomUUID(), name, role, emoji: emoji || '🤖', status: 'IDLE', output: [], queue: [] };
+  const newAgent = { id: randomUUID(), name, role, emoji: sanitizeEmoji(emoji), status: 'IDLE', output: [], queue: [] };
   agents.push(newAgent);
   res.status(201).json(agents);
 });
@@ -613,7 +649,11 @@ function setupNativeWindow() {
   // Inject native-mode flag AND initial state so the UI works even if bind
   // callbacks can't fire (w.show() blocks the Node event loop, so Promises
   // from w.bind() may never resolve).
-  const initialState = JSON.stringify({ agents, connectionState });
+  const initialState = JSON.stringify({ agents, connectionState, emojis: SAFE_EMOJI_LIST })
+    // Make JSON safe for embedding in an inline <script> tag.
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
   html = html.replace('<script src="squadAPI.js"></script>',
     `<script>window.__NATIVE_MODE__ = true; window.__SQUAD_STATE__ = ${initialState};</script>\n<script>${apiJs}</script>`);
   html = html.replace('<script src="renderer.js"></script>', `<script>${rendererJs}</script>`);
@@ -625,7 +665,10 @@ function setupNativeWindow() {
   w.bind('nativeGetAgents', (_w) => JSON.stringify(agents));
 
   w.bind('nativeAddAgent', (_w, name, role, emoji) => {
-    const newAgent = { id: randomUUID(), name, role, emoji: emoji || '🤖', status: 'IDLE', output: [], queue: [] };
+    if (!name || !role) {
+      return JSON.stringify({ error: 'name and role are required' });
+    }
+    const newAgent = { id: randomUUID(), name, role, emoji: sanitizeEmoji(emoji), status: 'IDLE', output: [], queue: [] };
     agents.push(newAgent);
     return JSON.stringify(agents);
   });
