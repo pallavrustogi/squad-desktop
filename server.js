@@ -635,6 +635,9 @@ function setupNativeWindow() {
   w.bind('nativeGetAgents', (_w) => JSON.stringify(agents));
 
   w.bind('nativeAddAgent', (_w, name, role, emoji) => {
+    if (!name || !role) {
+      return JSON.stringify({ error: 'name and role are required' });
+    }
     const newAgent = { id: randomUUID(), name, role, emoji: sanitizeEmoji(emoji), status: 'IDLE', output: [], queue: [] };
     agents.push(newAgent);
     return JSON.stringify(agents);
