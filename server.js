@@ -39,10 +39,30 @@ process.on('exit', (code) => {
 });
 
 // ── Safe Emoji Allowlist ────────────────────────────────────────────────────
-const SAFE_EMOJIS = new Set([
-  '🤖', '🏗️', '⚛️', '⚙️', '🔬', '🎯', '🛡️', '🧠', '💡', '🔍',
-  '📊', '🚀', '🦊', '🐙', '🦉', '🎨', '📝', '⚡', '🔧', '🌐',
-]);
+// Single source of truth for allowed emojis; exposed via GET /api/emojis.
+const SAFE_EMOJI_LIST = [
+  { emoji: '🤖', label: 'Robot' },
+  { emoji: '🏗️', label: 'Construction' },
+  { emoji: '⚛️', label: 'Atom' },
+  { emoji: '⚙️', label: 'Gear' },
+  { emoji: '🔬', label: 'Microscope' },
+  { emoji: '🎯', label: 'Target' },
+  { emoji: '🛡️', label: 'Shield' },
+  { emoji: '🧠', label: 'Brain' },
+  { emoji: '💡', label: 'Lightbulb' },
+  { emoji: '🔍', label: 'Search' },
+  { emoji: '📊', label: 'Chart' },
+  { emoji: '🚀', label: 'Rocket' },
+  { emoji: '🦊', label: 'Fox' },
+  { emoji: '🐙', label: 'Octopus' },
+  { emoji: '🦉', label: 'Owl' },
+  { emoji: '🎨', label: 'Palette' },
+  { emoji: '📝', label: 'Memo' },
+  { emoji: '⚡', label: 'Lightning' },
+  { emoji: '🔧', label: 'Wrench' },
+  { emoji: '🌐', label: 'Globe' },
+];
+const SAFE_EMOJIS = new Set(SAFE_EMOJI_LIST.map(({ emoji }) => emoji));
 
 function sanitizeEmoji(emoji) {
   if (typeof emoji !== 'string') return '🤖';
@@ -469,6 +489,10 @@ app.use(express.json());
 app.use(express.static(path.join(appDir, 'public')));
 
 // REST API — replaces IPC handlers
+app.get('/api/emojis', (_req, res) => {
+  res.json(SAFE_EMOJI_LIST);
+});
+
 app.get('/api/agents', (_req, res) => {
   res.json(agents);
 });
@@ -625,7 +649,11 @@ function setupNativeWindow() {
   // Inject native-mode flag AND initial state so the UI works even if bind
   // callbacks can't fire (w.show() blocks the Node event loop, so Promises
   // from w.bind() may never resolve).
-  const initialState = JSON.stringify({ agents, connectionState });
+  const initialState = JSON.stringify({ agents, connectionState, emojis: SAFE_EMOJI_LIST })
+    // Make JSON safe for embedding in an inline <script> tag.
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
   html = html.replace('<script src="squadAPI.js"></script>',
     `<script>window.__NATIVE_MODE__ = true; window.__SQUAD_STATE__ = ${initialState};</script>\n<script>${apiJs}</script>`);
   html = html.replace('<script src="renderer.js"></script>', `<script>${rendererJs}</script>`);
