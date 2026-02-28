@@ -649,7 +649,11 @@ function setupNativeWindow() {
   // Inject native-mode flag AND initial state so the UI works even if bind
   // callbacks can't fire (w.show() blocks the Node event loop, so Promises
   // from w.bind() may never resolve).
-  const initialState = JSON.stringify({ agents, connectionState, emojis: SAFE_EMOJI_LIST });
+  const initialState = JSON.stringify({ agents, connectionState, emojis: SAFE_EMOJI_LIST })
+    // Make JSON safe for embedding in an inline <script> tag.
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
   html = html.replace('<script src="squadAPI.js"></script>',
     `<script>window.__NATIVE_MODE__ = true; window.__SQUAD_STATE__ = ${initialState};</script>\n<script>${apiJs}</script>`);
   html = html.replace('<script src="renderer.js"></script>', `<script>${rendererJs}</script>`);
