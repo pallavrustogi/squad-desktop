@@ -549,6 +549,17 @@ body {
     gap: 12px;
 }
 
+#add-agent-form label {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
 #add-agent-form input, #add-agent-form select {
     background: var(--bg-card);
     color: var(--text-primary);
