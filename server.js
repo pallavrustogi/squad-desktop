@@ -70,6 +70,11 @@ function sanitizeEmoji(emoji) {
   return SAFE_EMOJIS.has(normalized) ? normalized : '🤖';
 }
 
+function sanitizeName(value) {
+  if (typeof value !== 'string') return '';
+  return value.replace(/[<>]/g, '').trim();
+}
+
 // ── State ──────────────────────────────────────────────────────────────────
 let agents = [];
 let squadClient = null;
@@ -499,8 +504,10 @@ app.get('/api/agents', (_req, res) => {
 
 app.post('/api/agents', (req, res) => {
   const { name, role, emoji } = req.body;
-  if (!name || !role) return res.status(400).json({ error: 'name and role are required' });
-  const newAgent = { id: randomUUID(), name, role, emoji: sanitizeEmoji(emoji), status: 'IDLE', output: [], queue: [] };
+  const sanitizedName = sanitizeName(name);
+  const sanitizedRole = sanitizeName(role);
+  if (!sanitizedName || !sanitizedRole) return res.status(400).json({ error: 'name and role are required' });
+  const newAgent = { id: randomUUID(), name: sanitizedName, role: sanitizedRole, emoji: sanitizeEmoji(emoji), status: 'IDLE', output: [], queue: [] };
   agents.push(newAgent);
   res.status(201).json(agents);
 });
