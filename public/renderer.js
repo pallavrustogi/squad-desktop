@@ -1,6 +1,15 @@
 let agents = [];
 let terminalLogCount = 0;
 
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;');
+}
+
 function formatTimestamp(date) {
     const hours = date.getHours();
     const minutes = date.getMinutes();
@@ -24,8 +33,8 @@ function renderAgentCard(agent) {
         <div class="agent-header">
             <div class="agent-emoji">${agent.emoji}</div>
             <div class="agent-info">
-                <div class="agent-name">${agent.name}</div>
-                <div class="agent-role">${agent.role}</div>
+                <div class="agent-name">${escapeHtml(agent.name)}</div>
+                <div class="agent-role">${escapeHtml(agent.role)}</div>
             </div>
             <span class="status-badge ${statusClass}">${agent.status}</span>
         </div>
@@ -131,7 +140,7 @@ function renderQueueItem(queueItem, agentName, agentEmoji) {
             <span class="queue-timestamp">${timestamp}</span>
         </div>
         <div class="queue-command">${queueItem.command}</div>
-        <div class="queue-agent">→ ${agentEmoji} ${agentName}</div>
+        <div class="queue-agent">→ ${agentEmoji} ${escapeHtml(agentName)}</div>
         ${resultPreview ? `<div class="queue-result">${resultPreview}</div>` : ''}
     `;
 
@@ -191,8 +200,8 @@ function renderRosterList() {
             <div class="roster-item-info">
                 <div class="roster-item-emoji">${agent.emoji}</div>
                 <div class="roster-item-details">
-                    <div class="roster-item-name">${agent.name}</div>
-                    <div class="roster-item-role">${agent.role}</div>
+                    <div class="roster-item-name">${escapeHtml(agent.name)}</div>
+                    <div class="roster-item-role">${escapeHtml(agent.role)}</div>
                 </div>
             </div>
             <button class="btn-remove" data-agent-id="${agent.id}">Remove</button>

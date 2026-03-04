@@ -70,6 +70,15 @@ function sanitizeEmoji(emoji) {
   return SAFE_EMOJIS.has(normalized) ? normalized : '🤖';
 }
 
+const MAX_AGENT_FIELD_LENGTH = 100;
+
+function validateAgentFields(name, role) {
+  if (typeof name !== 'string' || typeof role !== 'string') return 'name and role must be strings';
+  if (!name.trim() || !role.trim()) return 'name and role are required';
+  if (name.length > MAX_AGENT_FIELD_LENGTH || role.length > MAX_AGENT_FIELD_LENGTH) return `name and role must be ${MAX_AGENT_FIELD_LENGTH} characters or fewer`;
+  return null;
+}
+
 // ── State ──────────────────────────────────────────────────────────────────
 let agents = [];
 let squadClient = null;
@@ -499,7 +508,8 @@ app.get('/api/agents', (_req, res) => {
 
 app.post('/api/agents', (req, res) => {
   const { name, role, emoji } = req.body;
-  if (!name || !role) return res.status(400).json({ error: 'name and role are required' });
+  const validationError = validateAgentFields(name, role);
+  if (validationError) return res.status(400).json({ error: validationError });
   const newAgent = { id: randomUUID(), name, role, emoji: sanitizeEmoji(emoji), status: 'IDLE', output: [], queue: [] };
   agents.push(newAgent);
   res.status(201).json(agents);
@@ -665,9 +675,8 @@ function setupNativeWindow() {
   w.bind('nativeGetAgents', (_w) => JSON.stringify(agents));
 
   w.bind('nativeAddAgent', (_w, name, role, emoji) => {
-    if (!name || !role) {
-      return JSON.stringify({ error: 'name and role are required' });
-    }
+    const validationError = validateAgentFields(name, role);
+    if (validationError) return JSON.stringify({ error: validationError });
     const newAgent = { id: randomUUID(), name, role, emoji: sanitizeEmoji(emoji), status: 'IDLE', output: [], queue: [] };
     agents.push(newAgent);
     return JSON.stringify(agents);
