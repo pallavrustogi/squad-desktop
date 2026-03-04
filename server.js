@@ -70,13 +70,16 @@ function sanitizeEmoji(emoji) {
   return SAFE_EMOJIS.has(normalized) ? normalized : '🤖';
 }
 
-const MAX_AGENT_FIELD_LENGTH = 100;
-
-function validateAgentFields(name, role) {
-  if (typeof name !== 'string' || typeof role !== 'string') return 'name and role must be strings';
-  if (!name.trim() || !role.trim()) return 'name and role are required';
-  if (name.length > MAX_AGENT_FIELD_LENGTH || role.length > MAX_AGENT_FIELD_LENGTH) return `name and role must be ${MAX_AGENT_FIELD_LENGTH} characters or fewer`;
-  return null;
+function sanitizeName(value) {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  const limited = trimmed.slice(0, 100);
+  return limited
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -508,9 +511,10 @@ app.get('/api/agents', (_req, res) => {
 
 app.post('/api/agents', (req, res) => {
   const { name, role, emoji } = req.body;
-  const validationError = validateAgentFields(name, role);
-  if (validationError) return res.status(400).json({ error: validationError });
-  const newAgent = { id: randomUUID(), name, role, emoji: sanitizeEmoji(emoji), status: 'IDLE', output: [], queue: [] };
+  const sanitizedName = sanitizeName(name);
+  const sanitizedRole = sanitizeName(role);
+  if (!sanitizedName || !sanitizedRole) return res.status(400).json({ error: 'name and role are required' });
+  const newAgent = { id: randomUUID(), name: sanitizedName, role: sanitizedRole, emoji: sanitizeEmoji(emoji), status: 'IDLE', output: [], queue: [] };
   agents.push(newAgent);
   res.status(201).json(agents);
 });

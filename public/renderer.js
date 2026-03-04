@@ -1,13 +1,13 @@
 let agents = [];
 let terminalLogCount = 0;
 
-function escapeHtml(str) {
+function escapeHTML(str) {
     return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#x27;');
+        .replace(/'/g, '&#39;');
 }
 
 function formatTimestamp(date) {
@@ -33,12 +33,12 @@ function renderAgentCard(agent) {
         <div class="agent-header">
             <div class="agent-emoji">${agent.emoji}</div>
             <div class="agent-info">
-                <div class="agent-name">${escapeHtml(agent.name)}</div>
-                <div class="agent-role">${escapeHtml(agent.role)}</div>
+                <div class="agent-name">${escapeHTML(agent.name)}</div>
+                <div class="agent-role">${escapeHTML(agent.role)}</div>
             </div>
             <span class="status-badge ${statusClass}">${agent.status}</span>
         </div>
-        <div class="agent-output" title="Click to expand/collapse">${outputText}</div>
+        <div class="agent-output" title="Click to expand/collapse">${escapeHTML(outputText)}</div>
     `;
 
     return card;
@@ -139,9 +139,9 @@ function renderQueueItem(queueItem, agentName, agentEmoji) {
             <span class="queue-status ${statusClass}">${queueItem.status}</span>
             <span class="queue-timestamp">${timestamp}</span>
         </div>
-        <div class="queue-command">${queueItem.command}</div>
-        <div class="queue-agent">→ ${agentEmoji} ${escapeHtml(agentName)}</div>
-        ${resultPreview ? `<div class="queue-result">${resultPreview}</div>` : ''}
+        <div class="queue-command">${escapeHTML(queueItem.command)}</div>
+        <div class="queue-agent">→ ${agentEmoji} ${escapeHTML(agentName)}</div>
+        ${resultPreview ? `<div class="queue-result">${escapeHTML(resultPreview)}</div>` : ''}
     `;
 
     return card;
@@ -200,8 +200,8 @@ function renderRosterList() {
             <div class="roster-item-info">
                 <div class="roster-item-emoji">${agent.emoji}</div>
                 <div class="roster-item-details">
-                    <div class="roster-item-name">${escapeHtml(agent.name)}</div>
-                    <div class="roster-item-role">${escapeHtml(agent.role)}</div>
+                    <div class="roster-item-name">${escapeHTML(agent.name)}</div>
+                    <div class="roster-item-role">${escapeHTML(agent.role)}</div>
                 </div>
             </div>
             <button class="btn-remove" data-agent-id="${agent.id}">Remove</button>
