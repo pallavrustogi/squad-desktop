@@ -72,7 +72,14 @@ function sanitizeEmoji(emoji) {
 
 function sanitizeName(value) {
   if (typeof value !== 'string') return '';
-  return value.replace(/[<>]/g, '').trim();
+  const trimmed = value.trim();
+  const limited = trimmed.slice(0, 100);
+  return limited
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ── State ──────────────────────────────────────────────────────────────────
