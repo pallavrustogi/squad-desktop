@@ -104,6 +104,10 @@
   var _state = window.__SQUAD_STATE__ || { agents: [], connectionState: 'disconnected' };
 
   window.squadAPI = {
+    getEmojis: NATIVE
+      ? function () { return Promise.resolve(_state.emojis || []); }
+      : function () { return fetchJSON('/api/emojis'); },
+
     getAgents: NATIVE
       ? function () { return Promise.resolve(_state.agents); }
       : function () { return fetchJSON('/api/agents'); },

@@ -1,6 +1,15 @@
 let agents = [];
 let terminalLogCount = 0;
 
+function escapeHTML(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function formatTimestamp(date) {
     const hours = date.getHours();
     const minutes = date.getMinutes();
@@ -24,12 +33,12 @@ function renderAgentCard(agent) {
         <div class="agent-header">
             <div class="agent-emoji">${agent.emoji}</div>
             <div class="agent-info">
-                <div class="agent-name">${agent.name}</div>
-                <div class="agent-role">${agent.role}</div>
+                <div class="agent-name">${escapeHTML(agent.name)}</div>
+                <div class="agent-role">${escapeHTML(agent.role)}</div>
             </div>
             <span class="status-badge ${statusClass}">${agent.status}</span>
         </div>
-        <div class="agent-output" title="Click to expand/collapse">${outputText}</div>
+        <div class="agent-output" title="Click to expand/collapse">${escapeHTML(outputText)}</div>
     `;
 
     return card;
@@ -130,9 +139,9 @@ function renderQueueItem(queueItem, agentName, agentEmoji) {
             <span class="queue-status ${statusClass}">${queueItem.status}</span>
             <span class="queue-timestamp">${timestamp}</span>
         </div>
-        <div class="queue-command">${queueItem.command}</div>
-        <div class="queue-agent">→ ${agentEmoji} ${agentName}</div>
-        ${resultPreview ? `<div class="queue-result">${resultPreview}</div>` : ''}
+        <div class="queue-command">${escapeHTML(queueItem.command)}</div>
+        <div class="queue-agent">→ ${agentEmoji} ${escapeHTML(agentName)}</div>
+        ${resultPreview ? `<div class="queue-result">${escapeHTML(resultPreview)}</div>` : ''}
     `;
 
     return card;
@@ -191,8 +200,8 @@ function renderRosterList() {
             <div class="roster-item-info">
                 <div class="roster-item-emoji">${agent.emoji}</div>
                 <div class="roster-item-details">
-                    <div class="roster-item-name">${agent.name}</div>
-                    <div class="roster-item-role">${agent.role}</div>
+                    <div class="roster-item-name">${escapeHTML(agent.name)}</div>
+                    <div class="roster-item-role">${escapeHTML(agent.role)}</div>
                 </div>
             </div>
             <button class="btn-remove" data-agent-id="${agent.id}">Remove</button>
@@ -227,7 +236,20 @@ function renderRosterList() {
 
 async function initialize() {
     try {
-        agents = await window.squadAPI.getAgents();
+        const [fetchedAgents, emojisResult] = await Promise.all([
+            window.squadAPI.getAgents(),
+            window.squadAPI.getEmojis().catch(() => [{ emoji: '🤖', label: 'Robot' }]),
+        ]);
+        agents = fetchedAgents;
+
+        const emojiSelect = document.getElementById('agent-emoji');
+        const emojiList = emojisResult.length > 0 ? emojisResult : [{ emoji: '🤖', label: 'Robot' }];
+        emojiList.forEach(({ emoji, label }) => {
+            const option = document.createElement('option');
+            option.value = emoji;
+            option.textContent = `${emoji} ${label}`;
+            emojiSelect.appendChild(option);
+        });
         renderAgentsList();
         updateAgentSelector();
         renderAllQueues();

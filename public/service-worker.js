@@ -1,6 +1,6 @@
 // Service worker — cache-first for app shell, network-first for API calls.
 
-const CACHE_NAME = 'squad-desktop-v1';
+const CACHE_NAME = 'squad-desktop-v3';
 const APP_SHELL = [
   '/',
   '/index.html',
